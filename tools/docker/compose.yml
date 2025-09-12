@@ -1,0 +1,10 @@
+services:
+  aarch64-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./../../:/CAVeBox/
+    working_dir: /CAVeBox
+    network_mode: "host"
+    privileged: true
