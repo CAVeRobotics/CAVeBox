@@ -7,18 +7,18 @@ static bool stop_signal = false;
 
 class InputHandler : public game_controller::InputHandler
 {
-public:
-    void HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event)
-    {
-        (void)(controller);
-        (void)(event);
-    }
+    public:
+        void HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event)
+        {
+            (void)(controller);
+            (void)(event);
+        }
 
-    void HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event)
-    {
-        (void)(controller);
-        (void)(event);
-    }
+        void HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event)
+        {
+            (void)(controller);
+            (void)(event);
+        }
 };
 
 void SignalHandler(const int signal)
