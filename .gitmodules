@@ -1,0 +1,12 @@
+[submodule "external/asio"]
+	path = external/asio
+	url = git@github.com:chriskohlhoff/asio.git
+[submodule "external/CAVeTalk"]
+	path = external/CAVeTalk
+	url = git@github.com:CAVEMaN-SeniorDesign/CAVeTalk.git
+[submodule "tools/cppcheck/cppcheck"]
+	path = tools/cppcheck/cppcheck
+	url = git@github.com:danmar/cppcheck.git
+[submodule "tools/uncrustify/uncrustify"]
+	path = tools/uncrustify/uncrustify
+	url = git@github.com:uncrustify/uncrustify.git
