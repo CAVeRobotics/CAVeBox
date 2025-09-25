@@ -1,0 +1,7 @@
+# Build
+_build
+build
+
+# VS Code
+.vscode/*
+!.vscode/launch.json
