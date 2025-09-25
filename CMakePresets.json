@@ -1,0 +1,67 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 30,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "default",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "aarch64",
+            "inherits": "default",
+            "toolchainFile": "${sourceDir}/toolchain_aarch64.cmake"
+        },
+        {
+            "name": "aarch64_Debug",
+            "inherits": "aarch64",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "aarch64_RelWithDebInfo",
+            "inherits": "aarch64",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "aarch64_Release",
+            "inherits": "aarch64",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "aarch64_MinSizeRel",
+            "inherits": "aarch64",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "MinSizeRel"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "aarch64_Debug",
+            "configurePreset": "aarch64_Debug"
+        },
+        {
+            "name": "aarch64_RelWithDebInfo",
+            "configurePreset": "aarch64_RelWithDebInfo"
+        },
+        {
+            "name": "aarch64_Release",
+            "configurePreset": "aarch64_Release"
+        },
+        {
+            "name": "aarch64_MinSizeRel",
+            "configurePreset": "aarch64_MinSizeRel"
+        }
+    ]
+}
