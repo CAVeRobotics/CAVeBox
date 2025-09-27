@@ -70,10 +70,10 @@ class ControllerHandler
 {
     public:
         ControllerHandler(std::shared_ptr<InputHandler> input_handler);
-        ControllerHandler(ControllerHandler &event_handler)                  = delete;
-        ControllerHandler(ControllerHandler &&event_handler)                 = delete;
-        ControllerHandler &operator=(const ControllerHandler &event_handler) = delete;
-        ControllerHandler &operator=(ControllerHandler &&event_handler)      = delete;
+        ControllerHandler(ControllerHandler &controller_handler)                  = delete;
+        ControllerHandler(ControllerHandler &&controller_handler)                 = delete;
+        ControllerHandler &operator=(const ControllerHandler &controller_handler) = delete;
+        ControllerHandler &operator=(ControllerHandler &&controller_handler)      = delete;
         ~ControllerHandler();
         void Stop(void);
         bool IsRunning(void);
