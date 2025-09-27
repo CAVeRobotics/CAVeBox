@@ -1,20 +1,23 @@
 #include <csignal>
 #include <memory>
 
-#include <game_controller.h>
+#include "cave_talk.h"
+
+#include "game_controller.h"
+#include "serial.h"
 
 static bool stop_signal = false;
 
 class InputHandler : public game_controller::InputHandler
 {
     public:
-        void HandleButtonDown(const game_controller::Controller *const controller, const game_controller::Event &event)
+        void HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event)
         {
             (void)(controller);
             (void)(event);
         }
 
-        void HandleAxisMotion(const game_controller::Controller *const controller, const game_controller::Event &event)
+        void HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event)
         {
             (void)(controller);
             (void)(event);
