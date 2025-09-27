@@ -14,32 +14,4 @@
         <id>unusedFunction</id>
     </suppress>
 
-    <!-- Suppress static linkage for functions to be used outside of translation unit -->
-    <suppress>
-        <id>staticFunction</id>
-        <symbolName>BspMotor_SetDirection</symbolName>
-    </suppress>
-    <suppress>
-        <id>staticFunction</id>
-        <symbolName>BspMotor_SetDutyCycle</symbolName>
-    </suppress>
-    <suppress>
-        <id>staticFunction</id>
-        <symbolName>Rover4ws_SampleEncoders</symbolName>
-    </suppress>
-    <suppress>
-        <id>staticFunction</id>
-        <symbolName>BspAdc_ReadRaw</symbolName>
-    </suppress>
-    <suppress>
-        <id>staticFunction</id>
-        <symbolName>Lsm6dsv16x_Calibrate</symbolName>
-    </suppress>
-
-    <!-- Suppress double sign comparison portability error -->
-    <suppress>
-        <id>invalidPointerCast</id>
-        <fileName>*/bots/src/rover_4ws.c</fileName>
-    </suppress>
-
 </suppressions>
