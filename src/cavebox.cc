@@ -1,3 +1,4 @@
+#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <functional>
@@ -116,6 +117,7 @@ int main(int argc, char *argv[])
     game_controller::Initialize();
     game_controller::ControllerHandler controller_handler(std::make_shared<InputHandler>(talker));
 
+    std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
     while (controller_handler.IsRunning() && !stop_signal)
     {
         CaveTalk_Error_t error = listener.Listen();
@@ -123,6 +125,13 @@ int main(int argc, char *argv[])
         if (CAVE_TALK_ERROR_NONE != error)
         {
             LOGGER_LOG_ERROR(std::cerr, kLogTag, "CAVeTalk Listen error: {}", (int)error);
+        }
+
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last) >= std::chrono::milliseconds(100))
+        {
+            talker->SpeakMovement(0, 0); // Send dummy movement commands for now to maintain connection
+            last = now;
         }
     }
 
