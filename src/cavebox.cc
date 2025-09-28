@@ -60,6 +60,7 @@ class CaveboxListenerCallbacks : public cave_talk::ListenerCallbacks
                                          const bool enabled);
         void HearConfigSteeringControl(const cave_talk::PID &turn_rate_params, const bool enabled);
         void HearAirQuality(const uint32_t dust_ug_per_m3, const uint32_t gas_ppm, const double temperature_celsius);
+        bool IsConnected(void) const;
 
     private:
         std::shared_ptr<cave_talk::Talker> talker_;
@@ -127,12 +128,13 @@ int main(int argc, char *argv[])
 
         return CAVE_TALK_ERROR_NONE;
     });
-    cave_talk::Listener listener([](void *const data, const std::size_t size, std::size_t *const bytes_received)
+    std::shared_ptr<CaveboxListenerCallbacks> listener_callbacks = std::make_shared<CaveboxListenerCallbacks>(talker);
+    cave_talk::Listener                       listener([](void *const data, const std::size_t size, std::size_t *const bytes_received)
     {
         *bytes_received = serial_port->Read(static_cast<std::uint8_t *>(data), size);
 
         return CAVE_TALK_ERROR_NONE;
-    }, std::make_shared<CaveboxListenerCallbacks>(talker));
+    }, listener_callbacks);
 
     // Set up game controller and input handler
     game_controller::Initialize();
@@ -152,7 +154,11 @@ int main(int argc, char *argv[])
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last) >= std::chrono::milliseconds(50))
         {
-            talker->SpeakMovement(input_handler->GetSpeed(), input_handler->GetTurnRate());
+            if (listener_callbacks->IsConnected())
+            {
+                talker->SpeakMovement(input_handler->GetSpeed(), input_handler->GetTurnRate());
+            }
+
             last = now;
         }
     }
@@ -345,6 +351,11 @@ void CaveboxListenerCallbacks::HearAirQuality(const uint32_t dust_ug_per_m3, con
     UNUSED(dust_ug_per_m3);
     UNUSED(gas_ppm);
     UNUSED(temperature_celsius);
+}
+
+bool CaveboxListenerCallbacks::IsConnected(void) const
+{
+    return connected_;
 }
 
 InputHandler::InputHandler(std::shared_ptr<cave_talk::Talker> talker) : talker_(talker)
