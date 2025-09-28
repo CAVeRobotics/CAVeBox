@@ -36,7 +36,9 @@ enum class JoystickAxis
     LEFT_X,
     LEFT_Y,
     RIGHT_X,
-    RIGHT_Y
+    RIGHT_Y,
+    TRIGGER_LEFT,
+    TRIGGER_RIGHT
 };
 
 enum class Button

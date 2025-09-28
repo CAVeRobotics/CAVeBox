@@ -66,16 +66,21 @@ class CaveboxListenerCallbacks : public cave_talk::ListenerCallbacks
         bool connected_ = false;
 };
 
-// TODO need thread-safe access to talker_
+// TODO make thread safe
 class InputHandler : public game_controller::InputHandler
 {
     public:
         InputHandler(std::shared_ptr<cave_talk::Talker> talker);
         void HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event);
         void HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event);
+        double GetSpeed(void) const;
+        double GetTurnRate(void) const;
 
     private:
         std::shared_ptr<cave_talk::Talker> talker_;
+        double speed_     = 0.0;
+        double turn_rate_ = 0.0;
+        bool armed_       = false;
 };
 
 void SignalHandler(const int signal)
@@ -83,6 +88,22 @@ void SignalHandler(const int signal)
     (void)(signal);
 
     stop_signal = true;
+}
+
+double Map(const double value, const double in_min, const double in_max, const double out_min, const double out_max)
+{
+    double capped_value = value;
+
+    if (value < in_min)
+    {
+        capped_value = in_min;
+    }
+    if (value > in_max)
+    {
+        capped_value = in_max;
+    }
+
+    return (capped_value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 int main(int argc, char *argv[])
@@ -115,7 +136,8 @@ int main(int argc, char *argv[])
 
     // Set up game controller and input handler
     game_controller::Initialize();
-    game_controller::ControllerHandler controller_handler(std::make_shared<InputHandler>(talker));
+    std::shared_ptr<InputHandler>      input_handler = std::make_shared<InputHandler>(talker);
+    game_controller::ControllerHandler controller_handler(input_handler);
 
     std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
     while (controller_handler.IsRunning() && !stop_signal)
@@ -128,9 +150,9 @@ int main(int argc, char *argv[])
         }
 
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last) >= std::chrono::milliseconds(100))
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last) >= std::chrono::milliseconds(50))
         {
-            talker->SpeakMovement(0, 0); // Send dummy movement commands for now to maintain connection
+            talker->SpeakMovement(input_handler->GetSpeed(), input_handler->GetTurnRate());
             last = now;
         }
     }
@@ -332,11 +354,47 @@ InputHandler::InputHandler(std::shared_ptr<cave_talk::Talker> talker) : talker_(
 void InputHandler::HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event)
 {
     UNUSED(controller);
-    UNUSED(event);
+
+    switch (static_cast<game_controller::Button>(event.cbutton.button))
+    {
+    case game_controller::Button::BUTTON_A:
+        armed_ = !armed_;
+        talker_->SpeakArm(armed_);
+        LOGGER_LOG_INFO(std::cout, kLogTag, "Armed: {}", armed_);
+    default:
+        break;
+    }
 }
 
 void InputHandler::HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event)
 {
     UNUSED(controller);
-    UNUSED(event);
+
+    switch (static_cast<game_controller::JoystickAxis>(event.jaxis.axis))
+    {
+    case game_controller::JoystickAxis::LEFT_X:
+        turn_rate_ = Map(event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1);
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "LEFT X {}, turn rate {}", event.jaxis.value, turn_rate_);
+        break;
+    case game_controller::JoystickAxis::TRIGGER_LEFT:
+        speed_ = Map(-event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1);
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "TRIGGER LEFT {}, speed {}", event.jaxis.value, speed_);
+        break;
+    case game_controller::JoystickAxis::TRIGGER_RIGHT:
+        speed_ = Map(event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1);
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "TRIGGER RIGHT {}, speed {}", event.jaxis.value, speed_);
+        break;
+    default:
+        break;
+    }
+}
+
+double InputHandler::GetSpeed(void) const
+{
+    return speed_;
+}
+
+double InputHandler::GetTurnRate(void) const
+{
+    return turn_rate_;
 }
