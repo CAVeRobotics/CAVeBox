@@ -63,7 +63,9 @@ int main(int argc, char *argv[])
     std::shared_ptr<cavebox::InputHandler> input_handler = std::make_shared<cavebox::InputHandler>(talker);
     game_controller::ControllerHandler     controller_handler(input_handler);
 
-    std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point last           = std::chrono::steady_clock::now();
+    double                                last_speed     = input_handler->GetSpeed();
+    double                                last_turn_rate = input_handler->GetTurnRate();
     while (controller_handler.IsRunning() && !stop_signal)
     {
         CaveTalk_Error_t error = listener.Listen();
@@ -80,16 +82,21 @@ int main(int argc, char *argv[])
             LOGGER_LOG_ERROR(std::cerr, kLogTag, "CAVeTalk Talk error: {}", (int)error);
         }
 
-        // TODO remove
-        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point now       = std::chrono::steady_clock::now();
+        const double                          speed     = input_handler->GetSpeed();
+        const double                          turn_rate = input_handler->GetTurnRate();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last) >= std::chrono::milliseconds(50))
         {
-            if (listener_callbacks->IsConnected())
+            if (listener_callbacks->IsConnected() &&
+                (speed != last_speed) &&
+                (turn_rate != last_turn_rate))
             {
-                talker->SpeakMovement(input_handler->GetSpeed(), input_handler->GetTurnRate());
+                talker->SpeakMovement(speed, turn_rate);
             }
 
-            last = now;
+            last           = now;
+            last_speed     = speed;
+            last_turn_rate = turn_rate;
         }
     }
 
