@@ -1,0 +1,204 @@
+#include "listener_callbacks.h"
+
+#include <memory>
+
+#include "logger.h"
+#include "talker.h"
+
+#define UNUSED(x) (void)(x)
+
+static const std::string kLogTag("CAVEBOX");
+
+namespace cavebox
+{
+
+ListenerCallbacks::ListenerCallbacks(std::shared_ptr<Talker> talker) : talker_(talker)
+{
+}
+
+ListenerCallbacks::~ListenerCallbacks()
+{
+}
+
+void ListenerCallbacks::HearOogaBooga(const cave_talk::Say ooga_booga)
+{
+    switch (ooga_booga)
+    {
+    case cave_talk::Say::SAY_OOGA:
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Heard Ooga");
+        talker_->SpeakOogaBooga(cave_talk::Say::SAY_BOOGA);
+        if (!connected_.load())
+        {
+            talker_->SpeakOogaBooga(cave_talk::Say::SAY_OOGA);
+        }
+        break;
+    case cave_talk::Say::SAY_BOOGA:
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Heard Booga");
+        if (!connected_.load())
+        {
+            connected_.store(true);
+
+            LOGGER_LOG_INFO(std::cout, kLogTag, "Connected");
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void ListenerCallbacks::HearMovement(const CaveTalk_MetersPerSecond_t speed, const CaveTalk_RadiansPerSecond_t turn_rate)
+{
+    UNUSED(speed);
+    UNUSED(turn_rate);
+}
+
+void ListenerCallbacks::HearCameraMovement(const CaveTalk_Radian_t pan, const CaveTalk_Radian_t tilt)
+{
+    UNUSED(pan);
+    UNUSED(tilt);
+}
+
+void ListenerCallbacks::HearLights(const bool headlights)
+{
+    UNUSED(headlights);
+}
+
+void ListenerCallbacks::HearArm(const bool arm)
+{
+    UNUSED(arm);
+}
+
+void ListenerCallbacks::HearOdometry(const cave_talk::Imu &IMU,
+                                     const cave_talk::Encoder &encoder_wheel_0,
+                                     const cave_talk::Encoder &encoder_wheel_1,
+                                     const cave_talk::Encoder &encoder_wheel_2,
+                                     const cave_talk::Encoder &encoder_wheel_3)
+{
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Acceleration: {}, {}, {}",
+                       IMU.accel().x_meters_per_second_squared(),
+                       IMU.accel().y_meters_per_second_squared(),
+                       IMU.accel().z_meters_per_second_squared());
+
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Angular Rate: {}, {}, {}",
+                       IMU.gyro().roll_radians_per_second(),
+                       IMU.gyro().pitch_radians_per_second(),
+                       IMU.gyro().yaw_radians_per_second());
+
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Quaternion: {}, {}, {}, {}",
+                       IMU.quat().w(),
+                       IMU.quat().x(),
+                       IMU.quat().y(),
+                       IMU.quat().z());
+
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Encoder Wheel 0: {}, {}",
+                       encoder_wheel_0.total_pulses(),
+                       encoder_wheel_0.rate_radians_per_second());
+
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Encoder Wheel 1: {}, {}",
+                       encoder_wheel_1.total_pulses(),
+                       encoder_wheel_1.rate_radians_per_second());
+
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Encoder Wheel 2: {}, {}",
+                       encoder_wheel_2.total_pulses(),
+                       encoder_wheel_2.rate_radians_per_second());
+
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Encoder Wheel 3: {}, {}",
+                       encoder_wheel_3.total_pulses(),
+                       encoder_wheel_3.rate_radians_per_second());
+}
+
+void ListenerCallbacks::HearLog(const char *const log)
+{
+    LOGGER_LOG_INFO(std::cout, kLogTag, "CAVeTalk Log: {}", log);
+}
+
+void ListenerCallbacks::HearConfigServoWheels(const cave_talk::Servo &servo_wheel_0,
+                                              const cave_talk::Servo &servo_wheel_1,
+                                              const cave_talk::Servo &servo_wheel_2,
+                                              const cave_talk::Servo &servo_wheel_3)
+{
+    UNUSED(servo_wheel_0);
+    UNUSED(servo_wheel_1);
+    UNUSED(servo_wheel_2);
+    UNUSED(servo_wheel_3);
+}
+
+void ListenerCallbacks::HearConfigServoCams(const cave_talk::Servo &servo_cam_pan, const cave_talk::Servo &servo_cam_tilt)
+{
+    UNUSED(servo_cam_pan);
+    UNUSED(servo_cam_tilt);
+}
+
+void ListenerCallbacks::HearConfigMotor(const cave_talk::Motor &motor_wheel_0,
+                                        const cave_talk::Motor &motor_wheel_1,
+                                        const cave_talk::Motor &motor_wheel_2,
+                                        const cave_talk::Motor &motor_wheel_3)
+{
+    UNUSED(motor_wheel_0);
+    UNUSED(motor_wheel_1);
+    UNUSED(motor_wheel_2);
+    UNUSED(motor_wheel_3);
+}
+
+void ListenerCallbacks::HearConfigEncoder(const cave_talk::ConfigEncoder &encoder_wheel_0,
+                                          const cave_talk::ConfigEncoder &encoder_wheel_1,
+                                          const cave_talk::ConfigEncoder &encoder_wheel_2,
+                                          const cave_talk::ConfigEncoder &encoder_wheel_3)
+{
+    UNUSED(encoder_wheel_0);
+    UNUSED(encoder_wheel_1);
+    UNUSED(encoder_wheel_2);
+    UNUSED(encoder_wheel_3);
+}
+
+void ListenerCallbacks::HearConfigLog(const cave_talk::LogLevel log_level)
+{
+    UNUSED(log_level);
+}
+
+void ListenerCallbacks::HearConfigWheelSpeedControl(const cave_talk::PID &wheel_0_params,
+                                                    const cave_talk::PID &wheel_1_params,
+                                                    const cave_talk::PID &wheel_2_params,
+                                                    const cave_talk::PID &wheel_3_params,
+                                                    const bool enabled)
+{
+    UNUSED(wheel_0_params);
+    UNUSED(wheel_1_params);
+    UNUSED(wheel_2_params);
+    UNUSED(wheel_3_params);
+    UNUSED(enabled);
+}
+
+void ListenerCallbacks::HearConfigSteeringControl(const cave_talk::PID &turn_rate_params, const bool enabled)
+{
+    UNUSED(turn_rate_params);
+    UNUSED(enabled);
+}
+
+void ListenerCallbacks::HearAirQuality(const uint32_t dust_ug_per_m3, const uint32_t gas_ppm, const double temperature_celsius)
+{
+    UNUSED(dust_ug_per_m3);
+    UNUSED(gas_ppm);
+    UNUSED(temperature_celsius);
+}
+
+bool ListenerCallbacks::IsConnected(void) const
+{
+    return connected_.load();
+}
+
+} // namespace cavebox

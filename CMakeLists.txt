@@ -30,8 +30,11 @@ find_package(Protobuf REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/exter
 set(SRCS
     ${CMAKE_SOURCE_DIR}/src/cavebox.cc
     ${CMAKE_SOURCE_DIR}/src/game_controller.cc
+    ${CMAKE_SOURCE_DIR}/src/input_handler.cc
+    ${CMAKE_SOURCE_DIR}/src/listener_callbacks.cc
     ${CMAKE_SOURCE_DIR}/src/logger.cc
     ${CMAKE_SOURCE_DIR}/src/serial.cc
+    ${CMAKE_SOURCE_DIR}/src/talker.cc
 )
 
 set(INC_DIRS
