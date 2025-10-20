@@ -21,8 +21,11 @@ add_compile_definitions(
 option(ABSL_PROPAGATE_CXX_STD "Propagate C++ standard to abseil-cpp" ON)
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/third_party/abseil-cpp)
 
-# TODO set hint based on target arch
-find_package(SDL2 REQUIRED HINTS "/opt/sysroot-arm64/usr/lib/aarch64-linux-gnu/cmake/SDL2/")
+# TODO set hints based on target arch
+set(OPENSSL_CRYPTO_LIBRARY "${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/libcrypto.a")
+set(OPENSSL_SSL_LIBRARY "${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/libssl.a")
+find_package(OpenSSL REQUIRED)
+find_package(SDL2 REQUIRED HINTS "${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/cmake/SDL2/")
 find_package(utf8_range REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/protobuf-install)
 find_package(absl REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/protobuf-install)
 find_package(Protobuf REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/protobuf-install)
@@ -57,6 +60,8 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/lib/c++/inc
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/lib/common/inc
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/build/CAVeTalk-cpp_protos
+        ${CMAKE_SOURCE_DIR}/external/Simple-WebSocket-Server
+        # ${OPENSSL_INCLUDE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -66,6 +71,7 @@ target_link_libraries(${PROJECT_NAME}
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/build/libCAVeTalk-cpp_messages.a
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/build/libCAVeTalk-common.a
         protobuf::libprotobuf
+        ${OPENSSL_LIBRARIES}
 )
 
 set(TOOLS_DIR ${CMAKE_SOURCE_DIR}/tools)

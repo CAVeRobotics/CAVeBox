@@ -10,3 +10,6 @@
 [submodule "tools/uncrustify/uncrustify"]
 	path = tools/uncrustify/uncrustify
 	url = git@github.com:uncrustify/uncrustify.git
+[submodule "external/Simple-WebSocket-Server"]
+	path = external/Simple-WebSocket-Server
+	url = https://gitlab.com/eidheim/Simple-WebSocket-Server.git

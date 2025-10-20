@@ -57,6 +57,12 @@ void InputHandler::HandleAxisMotion(const game_controller::Controller *const con
     }
 }
 
+void InputHandler::HandleCameraCommand(const double pan_radians, const double tilt_radians)
+{
+    pan_.store(pan_radians);
+    pan_.store(tilt_radians);
+}
+
 double InputHandler::GetSpeed(void) const
 {
     return speed_.load();
@@ -65,6 +71,16 @@ double InputHandler::GetSpeed(void) const
 double InputHandler::GetTurnRate(void) const
 {
     return turn_rate_.load();
+}
+
+double InputHandler::GetPan(void) const
+{
+    return pan_.load();
+}
+
+double InputHandler::GetTilt(void) const
+{
+    return tilt_.load();
 }
 
 static double Map(const double value, const double in_min, const double in_max, const double out_min, const double out_max)

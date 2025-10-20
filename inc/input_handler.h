@@ -16,13 +16,18 @@ class InputHandler : public game_controller::InputHandler
         InputHandler(std::shared_ptr<Talker> talker);
         void HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event);
         void HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event);
+        void HandleCameraCommand(const double pan_radians, const double tilt_radians);
         double GetSpeed(void) const;
         double GetTurnRate(void) const;
+        double GetPan(void) const;
+        double GetTilt(void) const;
 
     private:
         std::shared_ptr<Talker> talker_;
         std::atomic<double> speed_;
         std::atomic<double> turn_rate_;
+        std::atomic<double> pan_;
+        std::atomic<double> tilt_;
         bool armed_ = false;
 };
 
