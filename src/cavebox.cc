@@ -108,7 +108,8 @@ int main(int argc, char *argv[])
         LOGGER_LOG_DEBUG(std::cout, kLogTag, "Camera server stopped");
     });
 
-    std::chrono::steady_clock::time_point last           = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point last_movement  = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point last_send      = std::chrono::steady_clock::now();
     double                                last_speed     = input_handler->GetSpeed();
     double                                last_turn_rate = input_handler->GetTurnRate();
     double                                last_pan       = input_handler->GetPan();
@@ -134,7 +135,7 @@ int main(int argc, char *argv[])
         const double                          turn_rate = input_handler->GetTurnRate();
         const double                          pan       = input_handler->GetPan();
         const double                          tilt      = input_handler->GetTilt();
-        if (listener_callbacks->IsConnected() && (std::chrono::duration_cast<std::chrono::milliseconds>(now - last) >= std::chrono::milliseconds(50)))
+        if (listener_callbacks->IsConnected() && (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_movement) >= std::chrono::milliseconds(50)))
         {
             if ((speed != last_speed) || (turn_rate != last_turn_rate))
             {
@@ -142,6 +143,7 @@ int main(int argc, char *argv[])
 
                 last_speed     = speed;
                 last_turn_rate = turn_rate;
+                last_send      = now;
             }
 
             if ((pan != last_pan) || (tilt != last_tilt))
@@ -150,9 +152,16 @@ int main(int argc, char *argv[])
 
                 last_pan  = pan;
                 last_tilt = tilt;
+                last_send = now;
             }
 
-            last = now;
+            last_movement = now;
+        }
+
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_movement) >= std::chrono::milliseconds(500))
+        {
+            talker->SpeakOogaBooga(cave_talk::Say::SAY_OOGA);
+            last_send = now;
         }
     }
 
