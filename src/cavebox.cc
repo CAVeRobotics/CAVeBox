@@ -73,16 +73,19 @@ int main(int argc, char *argv[])
     WsServer camera_server;
     camera_server.config.port = kWsPort;
     auto &camera_endpoint = camera_server.endpoint[kCameraEndpoint]; // TODO
-    camera_endpoint.on_message = [input_handler](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> in_message)
+    camera_endpoint.on_message = [input_handler](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
     {
         UNUSED(connection);
-        UNUSED(in_message);
 
-        // TODO unpack message and call input handler
-        input_handler->HandleCameraCommand(0.0, 0.0);
+        double pan  = 0U;
+        double tilt = 0U;
 
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Message received");
-        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Camera message received");
+        message->read(reinterpret_cast<char *>(&pan), sizeof(pan));
+        message->read(reinterpret_cast<char *>(&tilt), sizeof(tilt));
+
+        input_handler->HandleCameraCommand(pan, tilt);
+
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Camera message pan {} tilt {} received", pan, tilt);
     };
     camera_endpoint.on_open = [](std::shared_ptr<WsServer::Connection> connection)
     {

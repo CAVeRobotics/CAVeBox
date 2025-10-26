@@ -60,7 +60,7 @@ void InputHandler::HandleAxisMotion(const game_controller::Controller *const con
 void InputHandler::HandleCameraCommand(const double pan_radians, const double tilt_radians)
 {
     pan_.store(pan_radians);
-    pan_.store(tilt_radians);
+    tilt_.store(tilt_radians);
 }
 
 double InputHandler::GetSpeed(void) const
