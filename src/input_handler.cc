@@ -45,11 +45,11 @@ void InputHandler::HandleAxisMotion(const game_controller::Controller *const con
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "LEFT X {}, turn rate {}", event.jaxis.value, turn_rate_.load());
         break;
     case game_controller::JoystickAxis::TRIGGER_LEFT:
-        speed_.store(Map(-event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1)); // TODO adjust mapping -[0, 1]?
+        speed_.store(Map(-event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1));     // TODO adjust mapping -[0, 1]?
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "TRIGGER LEFT {}, speed {}", event.jaxis.value, speed_.load());
         break;
     case game_controller::JoystickAxis::TRIGGER_RIGHT:
-        speed_.store(Map(event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1)); // TODO adjust mapping [0, 1]?
+        speed_.store(Map(event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1));     // TODO adjust mapping [0, 1]?
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "TRIGGER RIGHT {}, speed {}", event.jaxis.value, speed_.load());
         break;
     default:
@@ -61,6 +61,12 @@ void InputHandler::HandleCameraCommand(const double pan_radians, const double ti
 {
     pan_.store(pan_radians);
     tilt_.store(tilt_radians);
+}
+
+void InputHandler::HandleDriveCommand(const double speed_meters_per_second, const double turn_rate_radians_per_second)
+{
+    speed_.store(speed_meters_per_second);
+    turn_rate_.store(turn_rate_radians_per_second);
 }
 
 double InputHandler::GetSpeed(void) const

@@ -17,6 +17,7 @@ class InputHandler : public game_controller::InputHandler
         void HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event);
         void HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event);
         void HandleCameraCommand(const double pan_radians, const double tilt_radians);
+        void HandleDriveCommand(const double speed_meters_per_second, const double turn_rate_radians_per_second);
         double GetSpeed(void) const;
         double GetTurnRate(void) const;
         double GetPan(void) const;

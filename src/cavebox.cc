@@ -25,6 +25,7 @@ using WsServer = SimpleWeb::SocketServer<SimpleWeb::WS>;
 static const std::string             kLogTag("CAVEBOX");
 static const std::uint16_t           kWsPort = 8081;
 static const std::string             kCameraEndpoint("^/camera/?$");
+static const std::string             kDriveEndpoint("^/drive/?$");
 static bool                          stop_signal = false;
 static std::shared_ptr<serial::Port> serial_port;
 
@@ -70,9 +71,10 @@ int main(int argc, char *argv[])
     game_controller::ControllerHandler     controller_handler(input_handler);
 
     // Set up websocket server
-    WsServer camera_server;
-    camera_server.config.port = kWsPort;
-    auto &camera_endpoint = camera_server.endpoint[kCameraEndpoint]; // TODO
+    WsServer command_server;
+    command_server.config.port = kWsPort;
+    auto &camera_endpoint = command_server.endpoint[kCameraEndpoint];
+    auto &drive_endpoint  = command_server.endpoint[kDriveEndpoint];
     camera_endpoint.on_message = [input_handler](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
     {
         UNUSED(connection);
@@ -89,11 +91,11 @@ int main(int argc, char *argv[])
     };
     camera_endpoint.on_open = [](std::shared_ptr<WsServer::Connection> connection)
     {
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Camera server opened connection: {:#x}", reinterpret_cast<std::uintptr_t>(connection.get()));
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server opened camera connection: {:#x}", reinterpret_cast<std::uintptr_t>(connection.get()));
     };
     camera_endpoint.on_close = [](std::shared_ptr<WsServer::Connection> connection, const int status, const std::string &)
     {
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Camera server closed connection: {:#x}, status code: {}", reinterpret_cast<std::uintptr_t>(connection.get()), status);
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server closed camera connection: {:#x}, status code: {}", reinterpret_cast<std::uintptr_t>(connection.get()), status);
     };
     camera_endpoint.on_handshake = [](std::shared_ptr<WsServer::Connection>, SimpleWeb::CaseInsensitiveMultimap &)
     {
@@ -101,14 +103,45 @@ int main(int argc, char *argv[])
     };
     camera_endpoint.on_error = [](std::shared_ptr<WsServer::Connection> connection, const SimpleWeb::error_code &error_code)
     {
-        LOGGER_LOG_ERROR(std::cerr, kLogTag, "Camera server error: {}, connection: {:#x}", error_code.message(), reinterpret_cast<std::uintptr_t>(connection.get()));
+        LOGGER_LOG_ERROR(std::cerr, kLogTag, "Command server error: {}, camera connection: {:#x}", error_code.message(), reinterpret_cast<std::uintptr_t>(connection.get()));
     };
-    std::thread camera_server_thread([&camera_server](){
-        camera_server.start([](const std::uint16_t port) {
-            LOGGER_LOG_DEBUG(std::cout, kLogTag, "Camera server listening on port: {}", port);
+    drive_endpoint.on_message = [input_handler](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
+    {
+        UNUSED(connection);
+
+        double speed     = 0U;
+        double turn_rate = 0U;
+
+        message->read(reinterpret_cast<char *>(&speed), sizeof(speed));
+        message->read(reinterpret_cast<char *>(&turn_rate), sizeof(turn_rate));
+
+        input_handler->HandleCameraCommand(speed, turn_rate);
+
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Drive message speed {} turn rate {} received", speed, turn_rate);
+    };
+    drive_endpoint.on_open = [](std::shared_ptr<WsServer::Connection> connection)
+    {
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server opened drive connection: {:#x}", reinterpret_cast<std::uintptr_t>(connection.get()));
+    };
+    drive_endpoint.on_close = [](std::shared_ptr<WsServer::Connection> connection, const int status, const std::string &)
+    {
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server closed drive connection: {:#x}, status code: {}", reinterpret_cast<std::uintptr_t>(connection.get()), status);
+    };
+    drive_endpoint.on_handshake = [](std::shared_ptr<WsServer::Connection>, SimpleWeb::CaseInsensitiveMultimap &)
+    {
+        return SimpleWeb::StatusCode::information_switching_protocols; // Upgrade to websocket
+    };
+    drive_endpoint.on_error = [](std::shared_ptr<WsServer::Connection> connection, const SimpleWeb::error_code &error_code)
+    {
+        LOGGER_LOG_ERROR(std::cerr, kLogTag, "Command server error: {}, drive connection: {:#x}", error_code.message(), reinterpret_cast<std::uintptr_t>(connection.get()));
+    };
+    std::thread command_server_thread([&command_server]()
+    {
+        command_server.start([](const std::uint16_t port) {
+            LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server listening on port: {}", port);
         });
 
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Camera server stopped");
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server stopped");
     });
 
     std::chrono::steady_clock::time_point last_movement  = std::chrono::steady_clock::now();
@@ -168,8 +201,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    camera_server.stop();
-    camera_server_thread.join();
+    command_server.stop();
+    command_server_thread.join();
     controller_handler.Stop();
     game_controller::Deinitialize();
 
