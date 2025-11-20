@@ -23,7 +23,8 @@ RUN chroot /opt/sysroot-arm64 /bin/bash -c \
     python3-catkin-pkg \
     python3-empy \
     python3-nose \
-    python3-setuptools"
+    python3-setuptools \
+    libssl-dev"
 RUN chroot /opt/sysroot-arm64 /bin/bash -c "apt clean"
 RUN chroot /opt/sysroot-arm64 /bin/bash -c "rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*"
 

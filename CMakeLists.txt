@@ -21,14 +21,13 @@ add_compile_definitions(
 option(ABSL_PROPAGATE_CXX_STD "Propagate C++ standard to abseil-cpp" ON)
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/third_party/abseil-cpp)
 
-# TODO set hints based on target arch
 set(OPENSSL_CRYPTO_LIBRARY "${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/libcrypto.a")
 set(OPENSSL_SSL_LIBRARY "${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/libssl.a")
 find_package(OpenSSL REQUIRED)
 find_package(SDL2 REQUIRED HINTS "${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/cmake/SDL2/")
-find_package(utf8_range REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/protobuf-install)
-find_package(absl REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/protobuf-install)
-find_package(Protobuf REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/protobuf-install)
+find_package(utf8_range REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/${CMAKE_SYSTEM_PROCESSOR}/protobuf-install)
+find_package(absl REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/${CMAKE_SYSTEM_PROCESSOR}/protobuf-install)
+find_package(Protobuf REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/${CMAKE_SYSTEM_PROCESSOR}/protobuf-install)
 
 set(SRCS
     ${CMAKE_SOURCE_DIR}/src/cavebox.cc
