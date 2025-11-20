@@ -24,8 +24,10 @@ using WsServer = SimpleWeb::SocketServer<SimpleWeb::WS>;
 
 static const std::string             kLogTag("CAVEBOX");
 static const std::uint16_t           kWsPort = 8081;
+static const std::string             kArmEndpoint("^/arm/?$");
 static const std::string             kCameraEndpoint("^/camera/?$");
 static const std::string             kDriveEndpoint("^/drive/?$");
+static const std::string             kMoveEndpoint("^/move/?$");
 static bool                          stop_signal = false;
 static std::shared_ptr<serial::Port> serial_port;
 
@@ -36,13 +38,34 @@ void SignalHandler(const int signal)
     stop_signal = true;
 }
 
+void InitializeEndpoint(SimpleWeb::SocketServerBase<SimpleWeb::WS>::Endpoint &endpoint, const std::string &connection_name, std::function<void(std::shared_ptr<WsServer::Connection>, std::shared_ptr<WsServer::InMessage>)> on_message)
+{
+    endpoint.on_message = on_message;
+    endpoint.on_open    = [connection_name](std::shared_ptr<WsServer::Connection> connection)
+    {
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server opened {} connection: {:#x}", connection_name, reinterpret_cast<std::uintptr_t>(connection.get()));
+    };
+    endpoint.on_close = [connection_name](std::shared_ptr<WsServer::Connection> connection, const int status, const std::string &)
+    {
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server closed {} connection: {:#x}, status code: {}", connection_name, reinterpret_cast<std::uintptr_t>(connection.get()), status);
+    };
+    endpoint.on_handshake = [connection_name](std::shared_ptr<WsServer::Connection>, SimpleWeb::CaseInsensitiveMultimap &)
+    {
+        return SimpleWeb::StatusCode::information_switching_protocols; // Upgrade to websocket
+    };
+    endpoint.on_error = [connection_name](std::shared_ptr<WsServer::Connection> connection, const SimpleWeb::error_code &error_code)
+    {
+        LOGGER_LOG_ERROR(std::cerr, kLogTag, "Command server error: {}, {} connection: {:#x}", error_code.message(), connection_name, reinterpret_cast<std::uintptr_t>(connection.get()));
+    };
+}
+
 int main(int argc, char *argv[])
 {
     std::signal(SIGINT, SignalHandler);
     std::signal(SIGTERM, SignalHandler);
 
     // Set up serial port
-    if (argc < 3)
+    if (argc < 4)
     {
         LOGGER_LOG_ERROR(std::cerr, kLogTag, "Invalid number of arguments");
         throw std::runtime_error("Invalid number of arguments");
@@ -57,7 +80,7 @@ int main(int argc, char *argv[])
 
         return CAVE_TALK_ERROR_NONE;
     });
-    std::shared_ptr<cavebox::ListenerCallbacks> listener_callbacks = std::make_shared<cavebox::ListenerCallbacks>(talker);
+    std::shared_ptr<cavebox::ListenerCallbacks> listener_callbacks = std::make_shared<cavebox::ListenerCallbacks>(talker, argv[3]);
     cave_talk::Listener                         listener([](void *const data, const std::size_t size, std::size_t *const bytes_received)
     {
         *bytes_received = serial_port->Read(static_cast<std::uint8_t *>(data), size);
@@ -73,68 +96,68 @@ int main(int argc, char *argv[])
     // Set up websocket server
     WsServer command_server;
     command_server.config.port = kWsPort;
-    auto &camera_endpoint = command_server.endpoint[kCameraEndpoint];
-    auto &drive_endpoint  = command_server.endpoint[kDriveEndpoint];
-    camera_endpoint.on_message = [input_handler](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
+    InitializeEndpoint(command_server.endpoint[kArmEndpoint],
+                       "arm",
+                       [talker](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
     {
         UNUSED(connection);
 
-        double pan  = 0U;
-        double tilt = 0U;
+        bool arm = false;
+
+        message->read(reinterpret_cast<char *>(&arm), sizeof(arm));
+
+        talker->SpeakArm(arm);
+
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Arm message {} received", arm);
+    });
+    InitializeEndpoint(command_server.endpoint[kCameraEndpoint],
+                       "camera",
+                       [talker](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
+    {
+        UNUSED(connection);
+
+        CaveTalk_Radian_t pan  = 0U;
+        CaveTalk_Radian_t tilt = 0U;
 
         message->read(reinterpret_cast<char *>(&pan), sizeof(pan));
         message->read(reinterpret_cast<char *>(&tilt), sizeof(tilt));
 
-        input_handler->HandleCameraCommand(pan, tilt);
+        talker->SpeakCameraMovement(pan, tilt);
 
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Camera message pan {} tilt {} received", pan, tilt);
-    };
-    camera_endpoint.on_open = [](std::shared_ptr<WsServer::Connection> connection)
-    {
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server opened camera connection: {:#x}", reinterpret_cast<std::uintptr_t>(connection.get()));
-    };
-    camera_endpoint.on_close = [](std::shared_ptr<WsServer::Connection> connection, const int status, const std::string &)
-    {
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server closed camera connection: {:#x}, status code: {}", reinterpret_cast<std::uintptr_t>(connection.get()), status);
-    };
-    camera_endpoint.on_handshake = [](std::shared_ptr<WsServer::Connection>, SimpleWeb::CaseInsensitiveMultimap &)
-    {
-        return SimpleWeb::StatusCode::information_switching_protocols; // Upgrade to websocket
-    };
-    camera_endpoint.on_error = [](std::shared_ptr<WsServer::Connection> connection, const SimpleWeb::error_code &error_code)
-    {
-        LOGGER_LOG_ERROR(std::cerr, kLogTag, "Command server error: {}, camera connection: {:#x}", error_code.message(), reinterpret_cast<std::uintptr_t>(connection.get()));
-    };
-    drive_endpoint.on_message = [input_handler](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
+    });
+    InitializeEndpoint(command_server.endpoint[kDriveEndpoint],
+                       "drive",
+                       [talker](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
     {
         UNUSED(connection);
 
-        double speed     = 0U;
-        double turn_rate = 0U;
+        CaveTalk_MetersPerSecond_t speed      = 0U;
+        CaveTalk_RadiansPerSecond_t turn_rate = 0U;
 
         message->read(reinterpret_cast<char *>(&speed), sizeof(speed));
         message->read(reinterpret_cast<char *>(&turn_rate), sizeof(turn_rate));
 
-        input_handler->HandleCameraCommand(speed, turn_rate);
+        talker->SpeakMovement(speed, turn_rate);
 
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Drive message speed {} turn rate {} received", speed, turn_rate);
-    };
-    drive_endpoint.on_open = [](std::shared_ptr<WsServer::Connection> connection)
+    });
+    InitializeEndpoint(command_server.endpoint[kMoveEndpoint],
+                       "move",
+                       [talker](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
     {
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server opened drive connection: {:#x}", reinterpret_cast<std::uintptr_t>(connection.get()));
-    };
-    drive_endpoint.on_close = [](std::shared_ptr<WsServer::Connection> connection, const int status, const std::string &)
-    {
-        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Command server closed drive connection: {:#x}, status code: {}", reinterpret_cast<std::uintptr_t>(connection.get()), status);
-    };
-    drive_endpoint.on_handshake = [](std::shared_ptr<WsServer::Connection>, SimpleWeb::CaseInsensitiveMultimap &)
-    {
-        return SimpleWeb::StatusCode::information_switching_protocols; // Upgrade to websocket
-    };
-    drive_endpoint.on_error = [](std::shared_ptr<WsServer::Connection> connection, const SimpleWeb::error_code &error_code)
-    {
-        LOGGER_LOG_ERROR(std::cerr, kLogTag, "Command server error: {}, drive connection: {:#x}", error_code.message(), reinterpret_cast<std::uintptr_t>(connection.get()));
-    };
+        UNUSED(connection);
+
+        CaveTalk_Meter_t position = 0U;
+        CaveTalk_Radian_t pose    = 0U;
+
+        message->read(reinterpret_cast<char *>(&position), sizeof(position));
+        message->read(reinterpret_cast<char *>(&pose), sizeof(pose));
+
+        talker->SpeakRelativeMove(cave_talk::RELATIVE_MOVE_TYPE_CMD, position, pose);
+
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Move message position {} pose {} received", position, pose);
+    });
     std::thread command_server_thread([&command_server]()
     {
         command_server.start([](const std::uint16_t port) {
@@ -194,7 +217,7 @@ int main(int argc, char *argv[])
             last_movement = now;
         }
 
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_movement) >= std::chrono::milliseconds(500))
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_send) >= std::chrono::milliseconds(500))
         {
             talker->SpeakOogaBooga(cave_talk::Say::SAY_OOGA);
             last_send = now;

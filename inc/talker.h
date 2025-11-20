@@ -36,6 +36,7 @@ class Talker : public cave_talk::Talker
         void SpeakConfigWheelSpeedControl(const cave_talk::PID &wheel_0_params, const cave_talk::PID &wheel_1_params, const cave_talk::PID &wheel_2_params, const cave_talk::PID &wheel_3_params, const bool enabled);
         void SpeakConfigSteeringControl(const cave_talk::PID &turn_rate_params, const bool enabled);
         void SpeakAirQuality(const uint32_t dust_ug_per_m3, const uint32_t gas_ppm, const double temperature_celsius);
+        void SpeakRelativeMove(const cave_talk::RelativeMoveType type, const CaveTalk_Meter_t position, const CaveTalk_Radian_t pose);
 
     private:
         Queue<std::function<CaveTalk_Error_t(void)>> speak_queue_;

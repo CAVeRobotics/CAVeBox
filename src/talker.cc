@@ -148,4 +148,12 @@ void Talker::SpeakAirQuality(const uint32_t dust_ug_per_m3, const uint32_t gas_p
     });
 }
 
+void Talker::SpeakRelativeMove(const cave_talk::RelativeMoveType type, const CaveTalk_Meter_t position, const CaveTalk_Radian_t pose)
+{
+    speak_queue_.Push([ =, this ]()
+    {
+        return cave_talk::Talker::SpeakRelativeMove(type, position, pose);
+    });
+}
+
 } // namespace cavebox

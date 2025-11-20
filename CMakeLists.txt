@@ -29,6 +29,10 @@ find_package(utf8_range REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/ext
 find_package(absl REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/${CMAKE_SYSTEM_PROCESSOR}/protobuf-install)
 find_package(Protobuf REQUIRED HINTS ${CMAKE_SOURCE_DIR}/external/CAVeTalk/external/protobuf/_build/${CMAKE_SYSTEM_PROCESSOR}/protobuf-install)
 
+include(FetchContent)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 set(SRCS
     ${CMAKE_SOURCE_DIR}/src/cavebox.cc
     ${CMAKE_SOURCE_DIR}/src/game_controller.cc
@@ -49,7 +53,6 @@ target_compile_definitions(${PROJECT_NAME}
     PRIVATE
         LOGGER
         $<$<CONFIG:Debug>:LOGGER_LEVEL=LOGGER_LEVEL_DEBUG>
-        $<$<CONFIG:Release>:LOGGER_LEVEL=LOGGER_LEVEL_INFO>
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -60,7 +63,6 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/lib/common/inc
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/build/CAVeTalk-cpp_protos
         ${CMAKE_SOURCE_DIR}/external/Simple-WebSocket-Server
-        # ${OPENSSL_INCLUDE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -71,6 +73,7 @@ target_link_libraries(${PROJECT_NAME}
         ${CMAKE_SOURCE_DIR}/external/CAVeTalk/build/libCAVeTalk-common.a
         protobuf::libprotobuf
         ${OPENSSL_LIBRARIES}
+        nlohmann_json::nlohmann_json
 )
 
 set(TOOLS_DIR ${CMAKE_SOURCE_DIR}/tools)

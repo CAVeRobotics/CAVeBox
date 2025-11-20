@@ -29,7 +29,8 @@ class InputHandler : public game_controller::InputHandler
         std::atomic<double> turn_rate_;
         std::atomic<double> pan_;
         std::atomic<double> tilt_;
-        bool armed_ = false;
+        bool armed_   = false;
+        bool control_ = true;
 };
 
 } // namespace cavebox

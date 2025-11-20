@@ -3,6 +3,10 @@
 
 #include <atomic>
 #include <memory>
+#include <string>
+
+#define ASIO_STANDALONE
+#include "client_ws.hpp"
 
 #include "cave_talk.h"
 
@@ -11,10 +15,12 @@
 namespace cavebox
 {
 
+using WsClient = SimpleWeb::SocketClient<SimpleWeb::WS>;
+
 class ListenerCallbacks : public cave_talk::ListenerCallbacks
 {
     public:
-        ListenerCallbacks(std::shared_ptr<Talker> talker);
+        ListenerCallbacks(std::shared_ptr<Talker> talker, const std::string &plotting_endpoint);
         ListenerCallbacks(ListenerCallbacks &listener_callbacks)                  = delete;
         ListenerCallbacks(ListenerCallbacks &&listener_callbacks)                 = delete;
         ListenerCallbacks &operator=(const ListenerCallbacks &listener_callbacks) = delete;
@@ -52,11 +58,16 @@ class ListenerCallbacks : public cave_talk::ListenerCallbacks
                                          const bool enabled);
         void HearConfigSteeringControl(const cave_talk::PID &turn_rate_params, const bool enabled);
         void HearAirQuality(const uint32_t dust_ug_per_m3, const uint32_t gas_ppm, const double temperature_celsius);
+        void HearRelativeMove(const cave_talk::RelativeMoveType type, const CaveTalk_Meter_t position, const CaveTalk_Radian_t pose);
         bool IsConnected(void) const;
 
     private:
         std::shared_ptr<Talker> talker_;
-        std::atomic_bool connected_ = false;
+        WsClient client_;
+        std::atomic_bool connected_        = false;
+        std::atomic_bool client_connected_ = false;
+        std::shared_ptr<WsClient::Connection> client_connection_;
+        std::thread client_thread_;
 };
 
 } // namespace cavebox

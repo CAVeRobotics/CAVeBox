@@ -22,6 +22,7 @@ InputHandler::InputHandler(std::shared_ptr<Talker> talker) : talker_(talker), sp
 void InputHandler::HandleButtonDown(const game_controller::Controller *const controller, game_controller::Event &event)
 {
     UNUSED(controller);
+    cave_talk::PID pid;
 
     switch (static_cast<game_controller::Button>(event.cbutton.button))
     {
@@ -29,6 +30,12 @@ void InputHandler::HandleButtonDown(const game_controller::Controller *const con
         armed_ = !armed_;
         talker_->SpeakArm(armed_);
         LOGGER_LOG_INFO(std::cout, kLogTag, "Armed: {}", armed_);
+        break;
+    case game_controller::Button::BUTTON_B:
+        control_ = !control_;
+        talker_->SpeakConfigWheelSpeedControl(pid, pid, pid, pid, control_);
+        LOGGER_LOG_INFO(std::cout, kLogTag, "Control: {}", control_);
+        break;
     default:
         break;
     }
@@ -37,19 +44,35 @@ void InputHandler::HandleButtonDown(const game_controller::Controller *const con
 void InputHandler::HandleAxisMotion(const game_controller::Controller *const controller, game_controller::Event &event)
 {
     UNUSED(controller);
+    double value;
 
     switch (static_cast<game_controller::JoystickAxis>(event.jaxis.axis))
     {
     case game_controller::JoystickAxis::LEFT_X:
-        turn_rate_.store(Map(event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1));
+        value = Map(-event.jaxis.value, INT16_MIN, INT16_MAX, -5, 5);
+        if (abs(value) < 1.0)
+        {
+            value = 0.0;
+        }
+        turn_rate_.store(value);
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "LEFT X {}, turn rate {}", event.jaxis.value, turn_rate_.load());
         break;
     case game_controller::JoystickAxis::TRIGGER_LEFT:
-        speed_.store(Map(-event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1));     // TODO adjust mapping -[0, 1]?
+        value = Map(event.jaxis.value, 0, INT16_MAX, 0, 0.8);
+        if (abs(value) < 0.30)
+        {
+            value = 0.0;
+        }
+        speed_.store(-value);
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "TRIGGER LEFT {}, speed {}", event.jaxis.value, speed_.load());
         break;
     case game_controller::JoystickAxis::TRIGGER_RIGHT:
-        speed_.store(Map(event.jaxis.value, INT16_MIN, INT16_MAX, -1, 1));     // TODO adjust mapping [0, 1]?
+        value = Map(event.jaxis.value, 0, INT16_MAX, 0, 0.8);
+        if (abs(value) < 0.30)
+        {
+            value = 0.0;
+        }
+        speed_.store(value);
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "TRIGGER RIGHT {}, speed {}", event.jaxis.value, speed_.load());
         break;
     default:

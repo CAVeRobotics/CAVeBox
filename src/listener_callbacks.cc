@@ -1,6 +1,11 @@
 #include "listener_callbacks.h"
 
 #include <memory>
+#include <string>
+
+#define ASIO_STANDALONE
+#include "client_ws.hpp"
+#include <nlohmann/json.hpp>
 
 #include "logger.h"
 #include "talker.h"
@@ -12,12 +17,41 @@ static const std::string kLogTag("CAVEBOX");
 namespace cavebox
 {
 
-ListenerCallbacks::ListenerCallbacks(std::shared_ptr<Talker> talker) : talker_(talker)
+ListenerCallbacks::ListenerCallbacks(std::shared_ptr<Talker> talker, const std::string &plotting_endpoint) : talker_(talker), client_(plotting_endpoint)
 {
+    LOGGER_LOG_DEBUG(std::cout, kLogTag, "Connecting to {}", plotting_endpoint);
+    client_.on_open = [this](std::shared_ptr<WsClient::Connection> connection)
+    {
+        this->client_connected_.store(true);
+        this->client_connection_ = connection;
+
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Plotting client opened connection: {:#x}", reinterpret_cast<std::uintptr_t>(connection.get()));
+    };
+
+    client_.on_close = [this](std::shared_ptr<WsClient::Connection> connection, int status, const std::string &)
+    {
+        this->client_connected_.store(false);
+
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Plotting client closed connection: {:#x}, status code: {}", reinterpret_cast<std::uintptr_t>(connection.get()), status);
+    };
+
+    client_.on_error = [](std::shared_ptr<WsClient::Connection> connection, const SimpleWeb::error_code &error_code)
+    {
+        LOGGER_LOG_ERROR(std::cerr, kLogTag, "Plotting client error: {}, connection: {:#x}", error_code.message(), reinterpret_cast<std::uintptr_t>(connection.get()));
+    };
+
+    client_thread_ = std::thread([this]()
+    {
+        this->client_.start();
+
+        LOGGER_LOG_DEBUG(std::cout, kLogTag, "Plotting client stopped");
+    });
 }
 
 ListenerCallbacks::~ListenerCallbacks()
 {
+    client_.stop();
+    client_thread_.join();
 }
 
 void ListenerCallbacks::HearOogaBooga(const cave_talk::Say ooga_booga)
@@ -119,6 +153,44 @@ void ListenerCallbacks::HearOdometry(const cave_talk::Imu &IMU,
                        "Encoder Wheel 3: {}, {}",
                        encoder_wheel_3.total_pulses(),
                        encoder_wheel_3.rate_radians_per_second());
+
+    if (client_connected_.load())
+    {
+        nlohmann::json odometry_json;
+        odometry_json["odometry"]["imu"]["acceleration"] = {
+            {"x", IMU.accel().x_meters_per_second_squared()},
+            {"y", IMU.accel().y_meters_per_second_squared()},
+            {"z", IMU.accel().z_meters_per_second_squared()},
+        };
+        odometry_json["odometry"]["imu"]["angular_rate"] = {
+            {"roll", IMU.gyro().roll_radians_per_second()},
+            {"pitch", IMU.gyro().pitch_radians_per_second()},
+            {"yaw", IMU.gyro().yaw_radians_per_second()},
+        };
+        odometry_json["odometry"]["imu"]["quaternion"] = {
+            {"w", IMU.quat().w()},
+            {"x", IMU.quat().x()},
+            {"y", IMU.quat().y()},
+            {"z", IMU.quat().z()},
+        };
+        odometry_json["odometry"]["encoders"]["0"] = {
+            {"pulses", encoder_wheel_0.total_pulses()},
+            {"rate", encoder_wheel_0.rate_radians_per_second()},
+        };
+        odometry_json["odometry"]["encoders"]["1"] = {
+            {"pulses", encoder_wheel_1.total_pulses()},
+            {"rate", encoder_wheel_1.rate_radians_per_second()},
+        };
+        odometry_json["odometry"]["encoders"]["2"] = {
+            {"pulses", encoder_wheel_2.total_pulses()},
+            {"rate", encoder_wheel_2.rate_radians_per_second()},
+        };
+        odometry_json["odometry"]["encoders"]["3"] = {
+            {"pulses", encoder_wheel_3.total_pulses()},
+            {"rate", encoder_wheel_3.rate_radians_per_second()},
+        };
+        client_connection_->send(odometry_json.dump());
+    }
 }
 
 void ListenerCallbacks::HearLog(const char *const log)
@@ -195,6 +267,15 @@ void ListenerCallbacks::HearAirQuality(const uint32_t dust_ug_per_m3, const uint
     UNUSED(gas_ppm);
     UNUSED(temperature_celsius);
 }
+
+void ListenerCallbacks::HearRelativeMove(const cave_talk::RelativeMoveType type, const CaveTalk_Meter_t position, const CaveTalk_Radian_t pose)
+{
+    /* TODO */
+    UNUSED(type);
+    UNUSED(position);
+    UNUSED(pose);
+}
+
 
 bool ListenerCallbacks::IsConnected(void) const
 {
