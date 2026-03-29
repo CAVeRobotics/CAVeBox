@@ -1,3 +1,4 @@
+#include <array>
 #include <chrono>
 #include <csignal>
 #include <cstdint>
@@ -22,14 +23,18 @@
 
 using WsServer = SimpleWeb::SocketServer<SimpleWeb::WS>;
 
-static const std::string             kLogTag("CAVEBOX");
-static const std::uint16_t           kWsPort = 8081;
-static const std::string             kArmEndpoint("^/arm/?$");
-static const std::string             kCameraEndpoint("^/camera/?$");
-static const std::string             kDriveEndpoint("^/drive/?$");
-static const std::string             kMoveEndpoint("^/move/?$");
-static bool                          stop_signal = false;
-static std::shared_ptr<serial::Port> serial_port;
+static const std::string               kLogTag("CAVEBOX");
+static const std::uint16_t             kWsPort = 8081;
+static const std::string               kArmEndpoint("^/arm/?$");
+static const std::string               kCameraEndpoint("^/camera/?$");
+static const std::string               kDriveEndpoint("^/drive/?$");
+static const std::string               kMoveEndpoint("^/move/?$");
+static const std::string               kSensorEndpoint("^/sensor/?$");
+static const std::string               kWaypointEndpoint("^/waypoint/?$");
+static bool                            stop_signal = false;
+static std::shared_ptr<serial::Port>   serial_port;
+static std::shared_ptr<serial::Port>   serial_port_sensor;
+static std::array<std::uint8_t, 4096U> sensor_data;
 
 void SignalHandler(const int signal)
 {
@@ -65,13 +70,15 @@ int main(int argc, char *argv[])
     std::signal(SIGTERM, SignalHandler);
 
     // Set up serial port
-    if (argc < 4)
+    if (argc < 6)
     {
         LOGGER_LOG_ERROR(std::cerr, kLogTag, "Invalid number of arguments");
         throw std::runtime_error("Invalid number of arguments");
     }
     serial_port = std::make_shared<serial::Port>(argv[1]);
     serial_port->Open(std::stoi(argv[2]));
+    serial_port_sensor = std::make_shared<serial::Port>(argv[3]);
+    serial_port_sensor->Open(std::stoi(argv[4]));
 
     // Set up CAVeTalk Talker and Listener
     std::shared_ptr<cavebox::Talker> talker = std::make_shared<cavebox::Talker>([](const void *const data, const std::size_t size)
@@ -80,7 +87,7 @@ int main(int argc, char *argv[])
 
         return CAVE_TALK_ERROR_NONE;
     });
-    std::shared_ptr<cavebox::ListenerCallbacks> listener_callbacks = std::make_shared<cavebox::ListenerCallbacks>(talker, argv[3]);
+    std::shared_ptr<cavebox::ListenerCallbacks> listener_callbacks = std::make_shared<cavebox::ListenerCallbacks>(talker, argv[5]);
     cave_talk::Listener                         listener([](void *const data, const std::size_t size, std::size_t *const bytes_received)
     {
         *bytes_received = serial_port->Read(static_cast<std::uint8_t *>(data), size);
@@ -158,6 +165,38 @@ int main(int argc, char *argv[])
 
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Move message position {} pose {} received", position, pose);
     });
+    InitializeEndpoint(command_server.endpoint[kSensorEndpoint],
+                       "sensor",
+                       [](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
+    {
+        UNUSED(connection);
+
+        std::vector<std::uint8_t> data;
+        data.reserve(message->size());
+        message->read(reinterpret_cast<char *>(data.data()), message->size());
+
+        serial_port_sensor->Write(data.data(), message->size());
+
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Sensor message received");
+    });
+    InitializeEndpoint(command_server.endpoint[kWaypointEndpoint],
+                       "waypoint",
+                       [talker](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
+    {
+        UNUSED(connection);
+
+        CaveTalk_Meter_t x        = 0U;
+        CaveTalk_Meter_t y        = 0U;
+        CaveTalk_Radian_t heading = 0U;
+
+        message->read(reinterpret_cast<char *>(&x), sizeof(x));
+        message->read(reinterpret_cast<char *>(&y), sizeof(y));
+        message->read(reinterpret_cast<char *>(&heading), sizeof(heading));
+
+        talker->SpeakWaypoint(cave_talk::WAYPOINT_TYPE_CMD, x, y, heading);
+
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Waypoint message x {} y {} heading {} received", x, y, heading);
+    });
     std::thread command_server_thread([&command_server]()
     {
         command_server.start([](const std::uint16_t port) {
@@ -221,6 +260,63 @@ int main(int argc, char *argv[])
         {
             talker->SpeakOogaBooga(cave_talk::Say::SAY_OOGA);
             last_send = now;
+        }
+
+        std::size_t bytes_read = serial_port_sensor->Read(sensor_data.data(), 4096);
+        if (bytes_read > 0)
+        {
+            std::shared_ptr<WsServer::OutMessage> message = std::make_shared<WsServer::OutMessage>();
+            message->write(reinterpret_cast<char *>(sensor_data.data()), bytes_read);
+            for (auto connection : command_server.endpoint[kSensorEndpoint].get_connections())
+            {
+                connection->send(message, [](const SimpleWeb::error_code &ec)
+                {
+                    if (ec)
+                    {
+                        /* TODO */
+                        std::cout << "Server: Error sending sensor message. " <<
+                            "Error: " << ec << ", error message: " << ec.message() << std::endl;
+                    }
+                }, 130);
+            }
+        }
+
+        if (listener_callbacks->IsRelativeMoveComplete())
+        {
+            std::uint8_t                          complete = 1U;
+            std::shared_ptr<WsServer::OutMessage> message  = std::make_shared<WsServer::OutMessage>();
+            message->write(reinterpret_cast<char *>(&complete), sizeof(complete));
+            for (auto connection : command_server.endpoint[kMoveEndpoint].get_connections())
+            {
+                connection->send(message, [](const SimpleWeb::error_code &ec)
+                {
+                    if (ec)
+                    {
+                        /* TODO */
+                        std::cout << "Server: Error sending move message. " <<
+                            "Error: " << ec << ", error message: " << ec.message() << std::endl;
+                    }
+                }, 130);
+            }
+        }
+
+        if (listener_callbacks->IsWaypointReached())
+        {
+            std::uint8_t                          reached = 1U;
+            std::shared_ptr<WsServer::OutMessage> message = std::make_shared<WsServer::OutMessage>();
+            message->write(reinterpret_cast<char *>(&reached), sizeof(reached));
+            for (auto connection : command_server.endpoint[kWaypointEndpoint].get_connections())
+            {
+                connection->send(message, [](const SimpleWeb::error_code &ec)
+                {
+                    if (ec)
+                    {
+                        /* TODO */
+                        std::cout << "Server: Error sending waypoint message. " <<
+                            "Error: " << ec << ", error message: " << ec.message() << std::endl;
+                    }
+                }, 130);
+            }
         }
     }
 

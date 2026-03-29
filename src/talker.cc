@@ -68,11 +68,11 @@ void Talker::SpeakArm(const bool arm)
     });
 }
 
-void Talker::SpeakOdometry(const cave_talk::Imu &IMU, const cave_talk::Encoder &encoder_wheel_0, const cave_talk::Encoder &encoder_wheel_1, const cave_talk::Encoder &encoder_wheel_2, const cave_talk::Encoder &encoder_wheel_3)
+void Talker::SpeakOdometry(const cave_talk::Imu &IMU, const cave_talk::Encoder &encoder_wheel_0, const cave_talk::Encoder &encoder_wheel_1, const cave_talk::Encoder &encoder_wheel_2, const cave_talk::Encoder &encoder_wheel_3, const cave_talk::Pose &pose)
 {
-    speak_queue_.Push([ =, this, IMU = IMU, encoder_wheel_0 = encoder_wheel_0, encoder_wheel_1 = encoder_wheel_1, encoder_wheel_2 = encoder_wheel_2, encoder_wheel_3 = encoder_wheel_3]()
+    speak_queue_.Push([ =, this, IMU = IMU, encoder_wheel_0 = encoder_wheel_0, encoder_wheel_1 = encoder_wheel_1, encoder_wheel_2 = encoder_wheel_2, encoder_wheel_3 = encoder_wheel_3, pose = pose]()
     {
-        return cave_talk::Talker::SpeakOdometry(IMU, encoder_wheel_0, encoder_wheel_1, encoder_wheel_2, encoder_wheel_3);
+        return cave_talk::Talker::SpeakOdometry(IMU, encoder_wheel_0, encoder_wheel_1, encoder_wheel_2, encoder_wheel_3, pose);
     });
 }
 
@@ -153,6 +153,14 @@ void Talker::SpeakRelativeMove(const cave_talk::RelativeMoveType type, const Cav
     speak_queue_.Push([ =, this ]()
     {
         return cave_talk::Talker::SpeakRelativeMove(type, position, pose);
+    });
+}
+
+void Talker::SpeakWaypoint(const cave_talk::WaypointType type, const CaveTalk_Meter_t x, const CaveTalk_Meter_t y, const CaveTalk_Radian_t heading)
+{
+    speak_queue_.Push([ =, this ]()
+    {
+        return cave_talk::Talker::SpeakWaypoint(type, x, y, heading);
     });
 }
 

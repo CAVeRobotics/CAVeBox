@@ -26,7 +26,7 @@ class Talker : public cave_talk::Talker
         void SpeakCameraMovement(const CaveTalk_Radian_t pan, const CaveTalk_Radian_t tilt);
         void SpeakLights(const bool headlights);
         void SpeakArm(const bool arm);
-        void SpeakOdometry(const cave_talk::Imu &IMU, const cave_talk::Encoder &encoder_wheel_0, const cave_talk::Encoder &encoder_wheel_1, const cave_talk::Encoder &encoder_wheel_2, const cave_talk::Encoder &encoder_wheel_3);
+        void SpeakOdometry(const cave_talk::Imu &IMU, const cave_talk::Encoder &encoder_wheel_0, const cave_talk::Encoder &encoder_wheel_1, const cave_talk::Encoder &encoder_wheel_2, const cave_talk::Encoder &encoder_wheel_3, const cave_talk::Pose &pose);
         void SpeakLog(const char *const log);
         void SpeakConfigServoWheels(const cave_talk::Servo &servo_wheel_0, const cave_talk::Servo &servo_wheel_1, const cave_talk::Servo &servo_wheel_2, const cave_talk::Servo &servo_wheel_3);
         void SpeakConfigServoCams(const cave_talk::Servo &servo_cam_pan, const cave_talk::Servo &servo_cam_tilt);
@@ -37,6 +37,7 @@ class Talker : public cave_talk::Talker
         void SpeakConfigSteeringControl(const cave_talk::PID &turn_rate_params, const bool enabled);
         void SpeakAirQuality(const uint32_t dust_ug_per_m3, const uint32_t gas_ppm, const double temperature_celsius);
         void SpeakRelativeMove(const cave_talk::RelativeMoveType type, const CaveTalk_Meter_t position, const CaveTalk_Radian_t pose);
+        void SpeakWaypoint(const cave_talk::WaypointType type, const CaveTalk_Meter_t x, const CaveTalk_Meter_t y, const CaveTalk_Radian_t heading);
 
     private:
         Queue<std::function<CaveTalk_Error_t(void)>> speak_queue_;

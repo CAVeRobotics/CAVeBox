@@ -49,7 +49,7 @@ void InputHandler::HandleAxisMotion(const game_controller::Controller *const con
     switch (static_cast<game_controller::JoystickAxis>(event.jaxis.axis))
     {
     case game_controller::JoystickAxis::LEFT_X:
-        value = Map(-event.jaxis.value, INT16_MIN, INT16_MAX, -5, 5);
+        value = Map(-event.jaxis.value, INT16_MIN, INT16_MAX, -10, 10);
         if (abs(value) < 1.0)
         {
             value = 0.0;

@@ -106,7 +106,8 @@ void ListenerCallbacks::HearOdometry(const cave_talk::Imu &IMU,
                                      const cave_talk::Encoder &encoder_wheel_0,
                                      const cave_talk::Encoder &encoder_wheel_1,
                                      const cave_talk::Encoder &encoder_wheel_2,
-                                     const cave_talk::Encoder &encoder_wheel_3)
+                                     const cave_talk::Encoder &encoder_wheel_3,
+                                     const cave_talk::Pose &pose)
 {
     LOGGER_LOG_VERBOSE(std::cout,
                        kLogTag,
@@ -154,6 +155,13 @@ void ListenerCallbacks::HearOdometry(const cave_talk::Imu &IMU,
                        encoder_wheel_3.total_pulses(),
                        encoder_wheel_3.rate_radians_per_second());
 
+    LOGGER_LOG_VERBOSE(std::cout,
+                       kLogTag,
+                       "Pose: {}, {}, {}",
+                       pose.x_meters(),
+                       pose.y_meters(),
+                       pose.heading_radians());
+
     if (client_connected_.load())
     {
         nlohmann::json odometry_json;
@@ -188,6 +196,11 @@ void ListenerCallbacks::HearOdometry(const cave_talk::Imu &IMU,
         odometry_json["odometry"]["encoders"]["3"] = {
             {"pulses", encoder_wheel_3.total_pulses()},
             {"rate", encoder_wheel_3.rate_radians_per_second()},
+        };
+        odometry_json["odometry"]["pose"] = {
+            {"x", pose.x_meters()},
+            {"y", pose.y_meters()},
+            {"heading", pose.heading_radians()},
         };
         client_connection_->send(odometry_json.dump());
     }
@@ -271,9 +284,26 @@ void ListenerCallbacks::HearAirQuality(const uint32_t dust_ug_per_m3, const uint
 void ListenerCallbacks::HearRelativeMove(const cave_talk::RelativeMoveType type, const CaveTalk_Meter_t position, const CaveTalk_Radian_t pose)
 {
     /* TODO */
-    UNUSED(type);
     UNUSED(position);
     UNUSED(pose);
+
+    if (cave_talk::RelativeMoveType::RELATIVE_MOVE_TYPE_ACK == type)
+    {
+        relative_move_ack_.store(true);
+    }
+}
+
+void ListenerCallbacks::HearWaypoint(const cave_talk::WaypointType type, const CaveTalk_Meter_t x, const CaveTalk_Meter_t y, const CaveTalk_Radian_t heading)
+{
+    /* TODO */
+    UNUSED(x);
+    UNUSED(y);
+    UNUSED(heading);
+
+    if (cave_talk::WaypointType::WAYPOINT_TYPE_ACK == type)
+    {
+        waypoint_ack_.store(true);
+    }
 }
 
 
@@ -281,5 +311,30 @@ bool ListenerCallbacks::IsConnected(void) const
 {
     return connected_.load();
 }
+
+bool ListenerCallbacks::IsRelativeMoveComplete(void)
+{
+    bool complete = relative_move_ack_.load();
+
+    if (complete)
+    {
+        relative_move_ack_.store(false);
+    }
+
+    return complete;
+}
+
+bool ListenerCallbacks::IsWaypointReached(void)
+{
+    bool reached = waypoint_ack_.load();
+
+    if (reached)
+    {
+        waypoint_ack_.store(false);
+    }
+
+    return reached;
+}
+
 
 } // namespace cavebox

@@ -35,7 +35,8 @@ class ListenerCallbacks : public cave_talk::ListenerCallbacks
                           const cave_talk::Encoder &encoder_wheel_0,
                           const cave_talk::Encoder &encoder_wheel_1,
                           const cave_talk::Encoder &encoder_wheel_2,
-                          const cave_talk::Encoder &encoder_wheel_3);
+                          const cave_talk::Encoder &encoder_wheel_3,
+                          const cave_talk::Pose &pose);
         void HearLog(const char *const log);
         void HearConfigServoWheels(const cave_talk::Servo &servo_wheel_0,
                                    const cave_talk::Servo &servo_wheel_1,
@@ -59,13 +60,18 @@ class ListenerCallbacks : public cave_talk::ListenerCallbacks
         void HearConfigSteeringControl(const cave_talk::PID &turn_rate_params, const bool enabled);
         void HearAirQuality(const uint32_t dust_ug_per_m3, const uint32_t gas_ppm, const double temperature_celsius);
         void HearRelativeMove(const cave_talk::RelativeMoveType type, const CaveTalk_Meter_t position, const CaveTalk_Radian_t pose);
+        void HearWaypoint(const cave_talk::WaypointType type, const CaveTalk_Meter_t x, const CaveTalk_Meter_t y, const CaveTalk_Radian_t heading);
         bool IsConnected(void) const;
+        bool IsRelativeMoveComplete(void);
+        bool IsWaypointReached(void);
 
     private:
         std::shared_ptr<Talker> talker_;
         WsClient client_;
-        std::atomic_bool connected_        = false;
-        std::atomic_bool client_connected_ = false;
+        std::atomic_bool connected_         = false;
+        std::atomic_bool client_connected_  = false;
+        std::atomic_bool relative_move_ack_ = false;
+        std::atomic_bool waypoint_ack_      = false;
         std::shared_ptr<WsClient::Connection> client_connection_;
         std::thread client_thread_;
 };
