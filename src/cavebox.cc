@@ -31,10 +31,12 @@ static const std::string               kDriveEndpoint("^/drive/?$");
 static const std::string               kMoveEndpoint("^/move/?$");
 static const std::string               kSensorEndpoint("^/sensor/?$");
 static const std::string               kWaypointEndpoint("^/waypoint/?$");
+static const std::string               kStepperEndpoint("^/stepper/?$");
 static bool                            stop_signal = false;
 static std::shared_ptr<serial::Port>   serial_port;
 static std::shared_ptr<serial::Port>   serial_port_sensor;
-static std::array<std::uint8_t, 4096U> sensor_data;
+static std::shared_ptr<serial::Port>   serial_port_stepper;
+static std::array<std::uint8_t, 4096U> serial_data;
 
 void SignalHandler(const int signal)
 {
@@ -70,7 +72,7 @@ int main(int argc, char *argv[])
     std::signal(SIGTERM, SignalHandler);
 
     // Set up serial port
-    if (argc < 6)
+    if (argc < 8)
     {
         LOGGER_LOG_ERROR(std::cerr, kLogTag, "Invalid number of arguments");
         throw std::runtime_error("Invalid number of arguments");
@@ -79,6 +81,8 @@ int main(int argc, char *argv[])
     serial_port->Open(std::stoi(argv[2]));
     serial_port_sensor = std::make_shared<serial::Port>(argv[3]);
     serial_port_sensor->Open(std::stoi(argv[4]));
+    serial_port_stepper = std::make_shared<serial::Port>(argv[5]);
+    serial_port_stepper->Open(std::stoi(argv[6]));
 
     // Set up CAVeTalk Talker and Listener
     std::shared_ptr<cavebox::Talker> talker = std::make_shared<cavebox::Talker>([](const void *const data, const std::size_t size)
@@ -87,7 +91,7 @@ int main(int argc, char *argv[])
 
         return CAVE_TALK_ERROR_NONE;
     });
-    std::shared_ptr<cavebox::ListenerCallbacks> listener_callbacks = std::make_shared<cavebox::ListenerCallbacks>(talker, argv[5]);
+    std::shared_ptr<cavebox::ListenerCallbacks> listener_callbacks = std::make_shared<cavebox::ListenerCallbacks>(talker, argv[7]);
     cave_talk::Listener                         listener([](void *const data, const std::size_t size, std::size_t *const bytes_received)
     {
         *bytes_received = serial_port->Read(static_cast<std::uint8_t *>(data), size);
@@ -197,6 +201,20 @@ int main(int argc, char *argv[])
 
         LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Waypoint message x {} y {} heading {} received", x, y, heading);
     });
+    InitializeEndpoint(command_server.endpoint[kStepperEndpoint],
+                       "stepper",
+                       [](std::shared_ptr<WsServer::Connection> connection, std::shared_ptr<WsServer::InMessage> message)
+    {
+        UNUSED(connection);
+
+        std::vector<std::uint8_t> data;
+        data.reserve(message->size());
+        message->read(reinterpret_cast<char *>(data.data()), message->size());
+
+        serial_port_stepper->Write(data.data(), message->size());
+
+        LOGGER_LOG_VERBOSE(std::cout, kLogTag, "Stepper message received");
+    });
     std::thread command_server_thread([&command_server]()
     {
         command_server.start([](const std::uint16_t port) {
@@ -262,11 +280,11 @@ int main(int argc, char *argv[])
             last_send = now;
         }
 
-        std::size_t bytes_read = serial_port_sensor->Read(sensor_data.data(), 4096);
+        std::size_t bytes_read = serial_port_sensor->Read(serial_data.data(), 4096);
         if (bytes_read > 0)
         {
             std::shared_ptr<WsServer::OutMessage> message = std::make_shared<WsServer::OutMessage>();
-            message->write(reinterpret_cast<char *>(sensor_data.data()), bytes_read);
+            message->write(reinterpret_cast<char *>(serial_data.data()), bytes_read);
             for (auto connection : command_server.endpoint[kSensorEndpoint].get_connections())
             {
                 connection->send(message, [](const SimpleWeb::error_code &ec)
@@ -275,6 +293,24 @@ int main(int argc, char *argv[])
                     {
                         /* TODO */
                         std::cout << "Server: Error sending sensor message. " <<
+                            "Error: " << ec << ", error message: " << ec.message() << std::endl;
+                    }
+                }, 130);
+            }
+        }
+        bytes_read = serial_port_stepper->Read(serial_data.data(), 4096);
+        if (bytes_read > 0)
+        {
+            std::shared_ptr<WsServer::OutMessage> message = std::make_shared<WsServer::OutMessage>();
+            message->write(reinterpret_cast<char *>(serial_data.data()), bytes_read);
+            for (auto connection : command_server.endpoint[kStepperEndpoint].get_connections())
+            {
+                connection->send(message, [](const SimpleWeb::error_code &ec)
+                {
+                    if (ec)
+                    {
+                        /* TODO */
+                        std::cout << "Server: Error sending stepper message. " <<
                             "Error: " << ec << ", error message: " << ec.message() << std::endl;
                     }
                 }, 130);
